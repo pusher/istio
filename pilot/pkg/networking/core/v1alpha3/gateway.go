@@ -29,6 +29,7 @@ import (
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	multierror "github.com/hashicorp/go-multierror"
 
+	google_protobuf "github.com/gogo/protobuf/types"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	istio_route "istio.io/istio/pilot/pkg/networking/core/v1alpha3/route"
@@ -348,6 +349,10 @@ func (configgen *ConfigGeneratorImpl) createGatewayHTTPFilterChainOpts(
 						Dns:     true,
 					},
 					ServerName: EnvoyServerName,
+					// TODO: This should be configurable and likely only set on http2 protos.
+					Http2ProtocolOptions: &core.Http2ProtocolOptions{
+						MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+					},
 				},
 			},
 		}
@@ -381,6 +386,10 @@ func (configgen *ConfigGeneratorImpl) createGatewayHTTPFilterChainOpts(
 					Dns:     true,
 				},
 				ServerName: EnvoyServerName,
+				// TODO: This should be configurable and likely only set on http2 protos.
+				Http2ProtocolOptions: &core.Http2ProtocolOptions{
+					MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+				},
 			},
 		},
 	}
