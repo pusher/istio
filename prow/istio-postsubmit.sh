@@ -41,7 +41,7 @@ time JUNIT_UNIT_TEST_XML="${ARTIFACTS_DIR}/junit_unit-tests.xml" \
 T="-v" \
 make localTestEnv test
 
-HUB="gcr.io/istio-testing"
+HUB="quay.io/pusher/istio"
 TAG="${GIT_SHA}"
 # upload images
 time ISTIO_DOCKER_HUB="${HUB}" make push HUB="${HUB}" TAG="${TAG}"
