@@ -42,11 +42,11 @@ export OWNER="${OWNER:-e2e-suite}"
 export PILOT_CLUSTER="${PILOT_CLUSTER:-}"
 export USE_MASON_RESOURCE="${USE_MASON_RESOURCE:-True}"
 export CLEAN_CLUSTERS="${CLEAN_CLUSTERS:-True}"
-export HUB=${HUB:-"gcr.io/istio-testing"}
+export HUB=${HUB:-"quay.io/pusher/istio"}
 
 # shellcheck source=prow/lib.sh
 source "${ROOT}/prow/lib.sh"
-if [[ $HUB == *"istio-testing"* ]]; then
+if [[ $HUB == *"quay.io/pusher/istio"* ]]; then
   setup_and_export_git_sha
 fi
 
@@ -67,13 +67,13 @@ done
 
 export TAG="${TAG:-${GIT_SHA}}"
 
-if [[ $HUB == *"istio-testing"* ]]; then
+if [[ $HUB == *"quay.io/pusher/istio"* ]]; then
   export TAG="${TAG:-${GIT_SHA}}"-"${SINGLE_TEST}"
 fi
 
 make init
 
-if [[ $HUB == *"istio-testing"* ]]; then
+if [[ $HUB == *"quay.io/pusher/istio"* ]]; then
   # upload images
   time ISTIO_DOCKER_HUB="${HUB}" make push HUB="${HUB}" TAG="${TAG}"
 fi
