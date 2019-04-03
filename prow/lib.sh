@@ -49,7 +49,6 @@ function setup_and_export_git_sha() {
   fi
   GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   export GIT_BRANCH
-  gcloud auth configure-docker -q
 }
 
 # Download and unpack istio release artifacts.
@@ -149,7 +148,7 @@ function setup_kind_cluster() {
 function cni_run_daemon() {
 
   echo 'Run the CNI daemon set'
-  ISTIO_CNI_HUB=${ISTIO_CNI_HUB:-gcr.io/istio-release}
+  ISTIO_CNI_HUB=${ISTIO_CNI_HUB:-quay.io/pusher/istio}
   ISTIO_CNI_TAG=${ISTIO_CNI_TAG:-master-latest-daily}
 
   chartdir=$(pwd)/charts
@@ -157,7 +156,7 @@ function cni_run_daemon() {
   helm init --client-only
   helm repo add istio.io https://gcsweb.istio.io/gcs/istio-prerelease/daily-build/release-1.1-latest-daily/charts/
   helm fetch --untar --untardir "${chartdir}" istio.io/istio-cni
- 
+
   helm template --values "${chartdir}"/istio-cni/values.yaml --name=istio-cni --namespace=kube-system --set "excludeNamespaces={}" --set cniBinDir=/home/kubernetes/bin --set hub="${ISTIO_CNI_HUB}" --set tag="${ISTIO_CNI_TAG}" --set pullPolicy=IfNotPresent --set logLevel="${CNI_LOGLVL:-debug}"  "${chartdir}"/istio-cni > istio-cni_install.yaml
 
   kubectl apply -f istio-cni_install.yaml

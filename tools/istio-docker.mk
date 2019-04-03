@@ -159,10 +159,10 @@ ifeq ($(DEBUG_IMAGE),1)
 	# It is extremely helpful to debug from the test app. The savings in size are not worth the
 	# developer pain
 	cp $(ISTIO_DOCKER)/testapp/Dockerfile.app $(ISTIO_DOCKER)/testapp/Dockerfile.appdbg
-	sed -e "s,FROM scratch,FROM $(HUB)/proxy_debug:$(TAG)," $(ISTIO_DOCKER)/testapp/Dockerfile.appdbg > $(ISTIO_DOCKER)/testapp/Dockerfile.appd
+	sed -e "s,FROM scratch,FROM $(HUB)-proxy_debug:$(TAG)," $(ISTIO_DOCKER)/testapp/Dockerfile.appdbg > $(ISTIO_DOCKER)/testapp/Dockerfile.appd
 endif
 	time (cd $(ISTIO_DOCKER)/testapp && \
-		docker build -t $(HUB)/app:$(TAG) -f Dockerfile.app .)
+		docker build -t $(HUB)-app:$(TAG) -f Dockerfile.app .)
 
 # Test policy backend for mixer integration
 docker.test_policybackend: mixer/docker/Dockerfile.test_policybackend
@@ -228,7 +228,7 @@ docker.node-agent-test: $(ISTIO_DOCKER)/node_agent.key
 # 4. This rule runs $(BUILD_PRE) prior to any docker build and only if specified as a dependency variable
 # 5. This rule finally runs docker build passing $(BUILD_ARGS) to docker if they are specified as a dependency variable
 
-DOCKER_RULE=time (mkdir -p $(DOCKER_BUILD_TOP)/$@ && cp -r $^ $(DOCKER_BUILD_TOP)/$@ && cd $(DOCKER_BUILD_TOP)/$@ && $(BUILD_PRE) docker build $(BUILD_ARGS) -t $(HUB)/$(subst docker.,,$@):$(TAG) -f Dockerfile$(suffix $@) .)
+DOCKER_RULE=time (mkdir -p $(DOCKER_BUILD_TOP)/$@ && cp -r $^ $(DOCKER_BUILD_TOP)/$@ && cd $(DOCKER_BUILD_TOP)/$@ && $(BUILD_PRE) docker build $(BUILD_ARGS) -t $(HUB)-$(subst docker.,,$@):$(TAG) -f Dockerfile$(suffix $@) .)
 
 # This target will package all docker images used in test and release, without re-building
 # go binaries. It is intended for CI/CD systems where the build is done in separate job.
@@ -241,7 +241,7 @@ docker.all: $(DOCKER_TARGETS)
 # create a DOCKER_TAR_TARGETS that's each of DOCKER_TARGETS with a tar. prefix
 DOCKER_TAR_TARGETS:=
 $(foreach TGT,$(DOCKER_TARGETS),$(eval tar.$(TGT): $(TGT) | $(ISTIO_DOCKER_TAR) ; \
-   time (docker save -o ${ISTIO_DOCKER_TAR}/$(subst docker.,,$(TGT)).tar $(HUB)/$(subst docker.,,$(TGT)):$(TAG) && \
+   time (docker save -o ${ISTIO_DOCKER_TAR}/$(subst docker.,,$(TGT)).tar $(HUB)-$(subst docker.,,$(TGT)):$(TAG) && \
          gzip ${ISTIO_DOCKER_TAR}/$(subst docker.,,$(TGT)).tar)))
 
 # create a DOCKER_TAR_TARGETS that's each of DOCKER_TARGETS with a tar. prefix DOCKER_TAR_TARGETS:=
@@ -254,7 +254,7 @@ docker.save: $(DOCKER_TAR_TARGETS)
 # the local docker image to another hub
 # a possible optimization is to use tag.$(TGT) as a dependency to do the tag for us
 $(foreach TGT,$(DOCKER_TARGETS),$(eval push.$(TGT): | $(TGT) ; \
-	time (docker push $(HUB)/$(subst docker.,,$(TGT)):$(TAG))))
+	time (docker push $(HUB)-$(subst docker.,,$(TGT)):$(TAG))))
 
 # create a DOCKER_PUSH_TARGETS that's each of DOCKER_TARGETS with a push. prefix
 DOCKER_PUSH_TARGETS:=

@@ -62,16 +62,16 @@ if [ "${CI:-}" == 'bootstrap' ]; then
   ARTIFACTS_DIR=${ARTIFACTS_DIR:-"${GOPATH}/src/istio.io/istio/_artifacts"}
 fi
 
-export HUB=${HUB:-"gcr.io/istio-testing"}
+export HUB=${HUB:-"quay.io/pusher/istio"}
 export TAG="${TAG:-${GIT_SHA}}"
 
-if [[ $HUB == *"istio-testing"* ]]; then
+if [[ $HUB == *"quay.io/pusher/istio"* ]]; then
   export TAG="${TAG:-${GIT_SHA}}"-"$*"
 fi
 
 make init
 
-if [[ $HUB == *"istio-testing"* ]]; then
+if [[ $HUB == *"quay.io/pusher/istio"* ]]; then
   time ISTIO_DOCKER_HUB="${HUB}" make push HUB="${HUB}" TAG="${TAG}"
 fi
 
