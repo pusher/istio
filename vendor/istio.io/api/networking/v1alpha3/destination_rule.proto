@@ -151,6 +151,10 @@ message TrafficPolicy {
   // Settings controlling the volume of connections to an upstream service
   ConnectionPoolSettings connection_pool = 2;
 
+  // Settings controlling the volume of connections between the sidecar and its
+  // service.
+  ConnectionPoolSettings inbound_connection_pool = 6;
+
   // Settings controlling eviction of unhealthy hosts from the load balancing pool
   OutlierDetection outlier_detection = 3;
 
@@ -173,6 +177,10 @@ message TrafficPolicy {
 
     // Settings controlling the volume of connections to an upstream service
     ConnectionPoolSettings connection_pool = 3;
+
+    // Settings controlling the volume of connections between the sidecar and its
+    // service.
+    ConnectionPoolSettings inbound_connection_pool = 6;
 
     // Settings controlling eviction of unhealthy hosts from the load balancing pool
     OutlierDetection outlier_detection = 4;

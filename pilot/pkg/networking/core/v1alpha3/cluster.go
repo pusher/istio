@@ -17,6 +17,7 @@ package v1alpha3
 import (
 	"fmt"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -543,8 +544,7 @@ func (configgen *ConfigGeneratorImpl) buildInboundClusterForPortOrUDS(pluginPara
 		if destinationRule.TrafficPolicy != nil {
 			// only connection pool settings make sense on the inbound path.
 			// upstream TLS settings/outlier detection/load balancer don't apply here.
-			applyConnectionPool(pluginParams.Env, localCluster, destinationRule.TrafficPolicy.ConnectionPool,
-				model.TrafficDirectionInbound)
+			applyConnectionPool(pluginParams.Env, localCluster, destinationRule.TrafficPolicy.ConnectionPool, destinationRule.TrafficPolicy.InboundConnectionPool, model.TrafficDirectionInbound)
 			localCluster.Metadata = util.BuildConfigInfoMetadata(config.ConfigMeta)
 		}
 	}
@@ -599,11 +599,12 @@ func buildIstioMutualTLS(serviceAccounts []string, sni string) *networking.TLSSe
 
 // SelectTrafficPolicyComponents returns the components of TrafficPolicy that should be used for given port.
 func SelectTrafficPolicyComponents(policy *networking.TrafficPolicy, port *model.Port) (
-	*networking.ConnectionPoolSettings, *networking.OutlierDetection, *networking.LoadBalancerSettings, *networking.TLSSettings) {
+	*networking.ConnectionPoolSettings, *networking.ConnectionPoolSettings, *networking.OutlierDetection, *networking.LoadBalancerSettings, *networking.TLSSettings) {
 	if policy == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, nil
 	}
 	connectionPool := policy.ConnectionPool
+	inboundConnectionPool := policy.InboundConnectionPool
 	outlierDetection := policy.OutlierDetection
 	loadBalancer := policy.LoadBalancer
 	tls := policy.Tls
@@ -625,6 +626,7 @@ func SelectTrafficPolicyComponents(policy *networking.TrafficPolicy, port *model
 			}
 			if foundPort {
 				connectionPool = p.ConnectionPool
+				inboundConnectionPool = p.InboundConnectionPool
 				outlierDetection = p.OutlierDetection
 				loadBalancer = p.LoadBalancer
 				tls = p.Tls
@@ -632,7 +634,7 @@ func SelectTrafficPolicyComponents(policy *networking.TrafficPolicy, port *model
 			}
 		}
 	}
-	return connectionPool, outlierDetection, loadBalancer, tls
+	return connectionPool, inboundConnectionPool, outlierDetection, loadBalancer, tls
 }
 
 // ClusterMode defines whether the cluster is being built for SNI-DNATing (sni passthrough) or not
@@ -650,9 +652,9 @@ const (
 func applyTrafficPolicy(env *model.Environment, cluster *apiv2.Cluster, policy *networking.TrafficPolicy,
 	port *model.Port, serviceAccounts []string, defaultSni string, clusterMode ClusterMode, direction model.TrafficDirection,
 	metadata map[string]string) {
-	connectionPool, outlierDetection, loadBalancer, tls := SelectTrafficPolicyComponents(policy, port)
+	connectionPool, inboundConnectionPool, outlierDetection, loadBalancer, tls := SelectTrafficPolicyComponents(policy, port)
 
-	applyConnectionPool(env, cluster, connectionPool, direction)
+	applyConnectionPool(env, cluster, connectionPool, inboundConnectionPool, direction)
 	applyOutlierDetection(cluster, outlierDetection)
 	applyLoadBalancer(cluster, loadBalancer)
 	if clusterMode != SniDnatClusterMode {
@@ -661,8 +663,29 @@ func applyTrafficPolicy(env *model.Environment, cluster *apiv2.Cluster, policy *
 	}
 }
 
+// connection pool settings are defined only if their struct contains a non-zero value.
+// This means a struct with all zero values is considered 'undefined'.
+func connectionPoolSettingsDefined(settings *networking.ConnectionPoolSettings) bool {
+	if settings == nil {
+		return false
+	}
+	zeroSettings := &networking.ConnectionPoolSettings{}
+
+	if reflect.DeepEqual(settings, zeroSettings) {
+		return false
+	}
+	return true
+}
+
 // FIXME: there isn't a way to distinguish between unset values and zero values
-func applyConnectionPool(env *model.Environment, cluster *apiv2.Cluster, settings *networking.ConnectionPoolSettings, direction model.TrafficDirection) {
+func applyConnectionPool(env *model.Environment, cluster *apiv2.Cluster, outboundSettings *networking.ConnectionPoolSettings, inboundSettings *networking.ConnectionPoolSettings, direction model.TrafficDirection) {
+	var settings *networking.ConnectionPoolSettings
+	if direction == model.TrafficDirectionInbound && connectionPoolSettingsDefined(inboundSettings) {
+		settings = inboundSettings
+	} else {
+		settings = outboundSettings
+	}
+
 	if settings == nil {
 		return
 	}

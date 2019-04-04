@@ -816,6 +816,7 @@ func validateTrafficPolicy(policy *networking.TrafficPolicy) error {
 
 	return appendErrors(validateOutlierDetection(policy.OutlierDetection),
 		validateConnectionPool(policy.ConnectionPool),
+		validateConnectionPool(policy.InboundConnectionPool),
 		validateLoadBalancer(policy.LoadBalancer),
 		validateTLS(policy.Tls), validatePortTrafficPolicies(policy.PortLevelSettings))
 }
@@ -930,6 +931,7 @@ func validatePortTrafficPolicies(pls []*networking.TrafficPolicy_PortTrafficPoli
 		} else {
 			errs = appendErrors(errs, validateOutlierDetection(t.OutlierDetection),
 				validateConnectionPool(t.ConnectionPool),
+				validateConnectionPool(t.InboundConnectionPool),
 				validateLoadBalancer(t.LoadBalancer),
 				validateTLS(t.Tls))
 		}
