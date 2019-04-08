@@ -548,6 +548,12 @@ func (configgen *ConfigGeneratorImpl) buildInboundClusterForPortOrUDS(pluginPara
 			localCluster.Metadata = util.BuildConfigInfoMetadata(config.ConfigMeta)
 		}
 	}
+
+	// TODO: Dont
+	if pluginParams.ListenerCategory == networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND && pluginParams.Port.Name == "http2-elements" {
+		localCluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
+	}
+
 	return localCluster
 }
 
