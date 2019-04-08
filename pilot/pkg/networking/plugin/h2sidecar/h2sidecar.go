@@ -69,7 +69,7 @@ func (Plugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) 
 	}
 	log.Infof("%v", in.Port)
 
-	if in.Port.Name != "http2-elements" {
+	if in.Port.Name != "http2-elements" || in.Port.Name != "http2-elements" {
 		return
 	}
 
