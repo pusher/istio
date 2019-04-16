@@ -37,6 +37,37 @@ func NewPlugin() plugin.Plugin {
 // OnOutboundListener is called whenever a new outbound listener is added to the LDS output for a given service
 // Can be used to add additional filters on the outbound path
 func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+	if in.Node == nil {
+		return nil
+	}
+
+	if in.Node.Type != model.SidecarProxy {
+		return nil
+	}
+
+	if in.ListenerCategory == networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND {
+		return nil
+	}
+
+	if in.ServiceInstance == nil {
+		return nil
+	}
+
+	if mutable == nil {
+		return nil
+	}
+
+	if in.Port.Port != 10443 {
+		return nil
+	}
+
+	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
+		return nil
+	}
+	log.Infof("h2sidecar: Manipulating outbound listener for port %v %v bind %v and initial state %v", in.Port, in.Port.Name, in.Bind, mutable)
+	setListenerH2S(mutable)
+	log.Infof("h2sidecar: %v %v %v mutated state: %v", in.Port, in.Port.Name, in.Bind, mutable)
+
 	return nil
 }
 
@@ -52,7 +83,7 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 
-	if in.ListenerCategory != networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND {
+	if in.ListenerCategory == networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND {
 		return nil
 	}
 
