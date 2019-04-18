@@ -20,6 +20,7 @@ import (
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
@@ -174,6 +175,13 @@ func setListenerH2S(index int, mutable *plugin.MutableObjects) error {
 
 	// Only accept h2 on this listener.
 	filterChain.TLSContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
+
+	// Match on h2 tls
+	if filterChain.FilterChainMatch == nil {
+		filterChain.FilterChainMatch = &listener.FilterChainMatch{}
+	}
+	filterChain.FilterChainMatch.TransportProtocol = "tls"
+	filterChain.FilterChainMatch.ApplicationProtocols = []string{"h2"}
 
 	log.Infof("h2sidecar: mutated filterchain to %v", filterChain)
 	mutable.FilterChains[index] = filterChain
