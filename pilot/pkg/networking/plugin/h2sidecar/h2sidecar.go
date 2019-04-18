@@ -15,6 +15,8 @@
 package h2sidecar
 
 import (
+	"errors"
+
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -74,7 +76,11 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	// TODO: Restrict port name?
 
 	log.Infof("h2sidecar: OnOutboundListener: Manipulating %v %v", in, mutable)
-	setListenerH2S(mutable)
+	err := setListenerH2S(mutable)
+	if err != nil {
+		log.Infof("h2sidecar: OnOutboundListener: %v", err.Error())
+		return err
+	}
 	log.Infof("h2sidecar: OnOutboundListener: Output %v %v", in, mutable)
 
 	return nil
@@ -124,18 +130,21 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 	log.Infof("h2sidecar: OnInboundListener: Manipulating %v %v", in, mutable)
-	setListenerH2S(mutable)
+	err := setListenerH2S(mutable)
+	if err != nil {
+		log.Infof("h2sidecar: OnInboundListener: %v", err.Error())
+		return err
+	}
 	log.Infof("h2sidecar: OnInboundListener: Output %v %v", in, mutable)
-
 	return nil
 }
 
 // setListenerH2S configures an listener to talk H2S.
 // TLC certs are hardcoded and ALPN is H2 only.
-func setListenerH2S(mutable *plugin.MutableObjects) {
+func setListenerH2S(mutable *plugin.MutableObjects) error {
 	if len(mutable.FilterChains) < 2 {
 		log.Infof("h2sidecar: Expected at least two listeners in filterchain (mtls and then the default) %v", mutable)
-		return
+		return errors.New("Too few listeners")
 	}
 
 	for ix, filterChain := range mutable.FilterChains {
@@ -168,6 +177,7 @@ func setListenerH2S(mutable *plugin.MutableObjects) {
 
 	log.Infof("h2sidecar: mutated filterchain to %v", filterChain)
 	mutable.FilterChains[1] = filterChain
+	return nil
 }
 
 // OnInboundCluster implements the Plugin interface method.
