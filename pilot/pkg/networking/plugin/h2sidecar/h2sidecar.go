@@ -53,8 +53,7 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	}
 
 	if in.ServiceInstance == nil {
-		log.Infof("h2sidecar: OnOutboundListener: No ServiceInstance. Skipping %v %v", in, mutable)
-		return nil
+		log.Infof("h2sidecar: OnOutboundListener: No ServiceInstance. Continue %v %v", in, mutable)
 	}
 
 	if mutable == nil {
