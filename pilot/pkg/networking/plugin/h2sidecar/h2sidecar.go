@@ -71,10 +71,8 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 		return nil
 	}
 
-	if in.Port.Name != "0.0.0.0_10443" {
-		log.Infof("h2sidecar: OnOutboundListener: Port name not 0.0.0.0:10443. Skipping %v %v", in, mutable)
-		return nil
-	}
+	// TODO: Restrict port name?
+
 	log.Infof("h2sidecar: OnOutboundListener: Manipulating %v %v", in, mutable)
 	setListenerH2S(mutable)
 	log.Infof("h2sidecar: OnOutboundListener: Output %v %v", in, mutable)
