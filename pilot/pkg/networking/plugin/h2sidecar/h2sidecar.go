@@ -76,7 +76,7 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	// TODO: Restrict port name?
 
 	log.Infof("h2sidecar: OnOutboundListener: Manipulating %v %v", in, mutable)
-	err := setListenerH2S(mutable)
+	err := setListenerH2S(0, mutable)
 	if err != nil {
 		log.Infof("h2sidecar: OnOutboundListener: %v", err.Error())
 		return err
@@ -130,7 +130,7 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 	log.Infof("h2sidecar: OnInboundListener: Manipulating %v %v", in, mutable)
-	err := setListenerH2S(mutable)
+	err := setListenerH2S(1, mutable)
 	if err != nil {
 		log.Infof("h2sidecar: OnInboundListener: %v", err.Error())
 		return err
@@ -141,9 +141,9 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 
 // setListenerH2S configures an listener to talk H2S.
 // TLC certs are hardcoded and ALPN is H2 only.
-func setListenerH2S(mutable *plugin.MutableObjects) error {
-	if len(mutable.FilterChains) < 2 {
-		log.Infof("h2sidecar: Expected at least two listeners in filterchain (mtls and then the default) %v", mutable)
+func setListenerH2S(index int, mutable *plugin.MutableObjects) error {
+	if len(mutable.FilterChains) < index+1 {
+		log.Infof("h2sidecar: Expected at least %v listeners in filterchain %v", index+1, mutable)
 		return errors.New("Too few listeners")
 	}
 
@@ -152,7 +152,7 @@ func setListenerH2S(mutable *plugin.MutableObjects) error {
 	}
 
 	// 0 index is expected to be the mtlschain
-	filterChain := mutable.FilterChains[1]
+	filterChain := mutable.FilterChains[index]
 	log.Infof("h2sidecar: Mutating listener filterChain %v", filterChain)
 
 	if filterChain.TLSContext == nil {
@@ -176,7 +176,7 @@ func setListenerH2S(mutable *plugin.MutableObjects) error {
 	filterChain.TLSContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
 
 	log.Infof("h2sidecar: mutated filterchain to %v", filterChain)
-	mutable.FilterChains[1] = filterChain
+	mutable.FilterChains[index] = filterChain
 	return nil
 }
 
