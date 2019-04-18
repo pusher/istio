@@ -71,8 +71,8 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 		return nil
 	}
 
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnOutboundListener: Port name not http2-elements or https-elements. Skipping %v %v", in, mutable)
+	if in.Port.Name != "0.0.0.0_10443" {
+		log.Infof("h2sidecar: OnOutboundListener: Port name not 0.0.0.0:10443. Skipping %v %v", in, mutable)
 		return nil
 	}
 	log.Infof("h2sidecar: OnOutboundListener: Manipulating %v %v", in, mutable)
