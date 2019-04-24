@@ -22,6 +22,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
 
+	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
@@ -131,12 +132,20 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 	log.Infof("h2sidecar: OnInboundListener: Manipulating %v %v", in, mutable)
-	err := setListenerH2S(1, mutable)
-	if err != nil {
-		log.Infof("h2sidecar: OnInboundListener: %v", err.Error())
-		return err
+
+	if len(mutable.FilterChains) < 2 {
+		log.Infof("h2sidecar: OnInboundListener: Expected at least 2 listeners in filterchain %v", mutable)
+		return nil
 	}
-	log.Infof("h2sidecar: OnInboundListener: Output %v %v", in, mutable)
+
+	filterChain := mutable.FilterChains[1]
+	if len(filterChain.TCP) < 1 {
+		log.Infof("h2sidecar: OnInboundListener: Expected at least 1 listener in filterchain filters %v", mutable)
+		return nil
+	}
+	httpConnectionManagerFilter := filterChain.TCP[0]
+	newFilterChain := buildFilterChain(httpConnectionManagerFilter)
+	mutable.FilterChains = append(mutable.FilterChains, *newFilterChain)
 	return nil
 }
 
@@ -186,6 +195,42 @@ func setListenerH2S(index int, mutable *plugin.MutableObjects) error {
 	log.Infof("h2sidecar: mutated filterchain to %v", filterChain)
 	mutable.FilterChains[index] = filterChain
 	return nil
+}
+
+// build a filterChain copy-pasteing a given httpConnectionManager.
+func buildFilterChain(httpConnectionManager listener.Filter) *plugin.FilterChain {
+	return &plugin.FilterChain{
+		FilterChainMatch: &listener.FilterChainMatch{
+			TransportProtocol:    "tls",
+			ApplicationProtocols: []string{"h2"},
+		},
+
+		TLSContext: &auth.DownstreamTlsContext{
+			CommonTlsContext: &auth.CommonTlsContext{
+				TlsCertificates: []*auth.TlsCertificate{
+					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
+						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
+					},
+				},
+			},
+		},
+
+		ListenerFilters: []listener.ListenerFilter{
+			listener.ListenerFilter{
+				Name: "envoy.listener.tls_inspector",
+			},
+		},
+
+		ListenerProtocol: plugin.ListenerProtocolHTTP,
+
+		HTTP: []*http_conn.HttpFilter{
+			&http_conn.HttpFilter{
+				Name: "envoy.router",
+			},
+		},
+
+		TCP: []listener.Filter{httpConnectionManager},
+	}
 }
 
 // OnInboundCluster implements the Plugin interface method.
