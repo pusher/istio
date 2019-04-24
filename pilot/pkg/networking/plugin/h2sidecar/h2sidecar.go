@@ -42,48 +42,44 @@ func NewPlugin() plugin.Plugin {
 // Can be used to add additional filters on the outbound path
 func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 	if in.Node == nil {
-		log.Infof("h2sidecar: OnOutboundListener: No node. Skipping %v %v", in, mutable)
 		return nil
 	}
 
 	if in.Node.Type != model.SidecarProxy {
-		log.Infof("h2sidecar: OnOutboundListener: Node type not SidecarProxy. Skipping %v %v", in, mutable)
 		return nil
 	}
 
 	if in.ListenerCategory != networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND {
-		log.Infof("h2sidecar: OnOutboundListener: Listener category not SidecarOutbound. Skipping %v %v", in, mutable)
 		return nil
 	}
 
-	if in.ServiceInstance == nil {
-		log.Infof("h2sidecar: OnOutboundListener: No ServiceInstance. Continue %v %v", in, mutable)
-	}
-
 	if mutable == nil {
-		log.Infof("h2sidecar: OnOutboundListener: No mutable. Skipping %v %v", in, mutable)
 		return nil
 	}
 
 	if in.Port == nil {
-		log.Infof("h2sidecar: OnOutboundListener: No port. Skipping %v %v", in, mutable)
 		return nil
 	}
 
 	if in.Port.Port != 10443 {
-		log.Infof("h2sidecar: OnOutboundListener: Port not 10443. Skipping %v %v", in, mutable)
 		return nil
 	}
 
 	// TODO: Restrict port name?
 
-	log.Infof("h2sidecar: OnOutboundListener: Manipulating %v %v", in, mutable)
-	err := setListenerH2S(0, mutable)
-	if err != nil {
-		log.Infof("h2sidecar: OnOutboundListener: %v", err.Error())
-		return err
+	if len(mutable.FilterChains) < 1 {
+		log.Infof("h2sidecar: OnInboundListener: Expected at least 1 listeners in filterchain %v", mutable)
+		return nil
 	}
-	log.Infof("h2sidecar: OnOutboundListener: Output %v %v", in, mutable)
+
+	filterChain := mutable.FilterChains[0]
+	if len(filterChain.TCP) < 1 {
+		log.Infof("h2sidecar: OnInboundListener: Expected at least 1 listener in filterchain filters %v", mutable)
+		return nil
+	}
+	httpConnectionManagerFilter := filterChain.TCP[0]
+	newFilterChain := buildFilterChain(httpConnectionManagerFilter)
+	mutable.FilterChains = append(mutable.FilterChains, *newFilterChain)
 
 	return nil
 }
@@ -92,60 +88,6 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 // Can be used to add additional filters (e.g., mixer filter) or add more stuff to the HTTP connection manager
 // on the inbound path
 func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	if in.Node == nil {
-		log.Infof("h2sidecar: OnInboundListener: No node. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.Node.Type != model.SidecarProxy {
-		log.Infof("h2sidecar: OnInboundListener: Node type not SidecarProxy. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.ListenerCategory != networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND {
-		log.Infof("h2sidecar: OnInboundListener: Listener category not SidecarInbound. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.ServiceInstance == nil {
-		log.Infof("h2sidecar: OnInboundListener: No ServiceInstance. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if mutable == nil {
-		log.Infof("h2sidecar: OnInboundListener: No mutable. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.Port == nil {
-		log.Infof("h2sidecar: OnInboundListener: No port. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.Port.Port != 10443 {
-		log.Infof("h2sidecar: OnInboundListener: Port not 10443. Skipping %v %v", in, mutable)
-		return nil
-	}
-
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnInboundListener: Port name not http2-elements or https-elements. Skipping %v %v", in, mutable)
-		return nil
-	}
-	log.Infof("h2sidecar: OnInboundListener: Manipulating %v %v", in, mutable)
-
-	if len(mutable.FilterChains) < 2 {
-		log.Infof("h2sidecar: OnInboundListener: Expected at least 2 listeners in filterchain %v", mutable)
-		return nil
-	}
-
-	filterChain := mutable.FilterChains[1]
-	if len(filterChain.TCP) < 1 {
-		log.Infof("h2sidecar: OnInboundListener: Expected at least 1 listener in filterchain filters %v", mutable)
-		return nil
-	}
-	httpConnectionManagerFilter := filterChain.TCP[0]
-	newFilterChain := buildFilterChain(httpConnectionManagerFilter)
-	mutable.FilterChains = append(mutable.FilterChains, *newFilterChain)
 	return nil
 }
 
@@ -236,42 +178,31 @@ func buildFilterChain(httpConnectionManager listener.Filter) *plugin.FilterChain
 // OnInboundCluster implements the Plugin interface method.
 func (Plugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
 	if in.Node == nil {
-		log.Infof("h2sidecar: OnInboundCluster: No node. Skipping %v %v", in, cluster)
 		return
 	}
 
 	if in.Node.Type != model.SidecarProxy {
-		log.Infof("h2sidecar: OnInboundCluster: Node not SidecarProxy. Skipping %v %v", in, cluster)
 		return
 	}
 
 	if in.ServiceInstance == nil {
-		log.Infof("h2sidecar: OnInboundCluster: No ServiceInstance. Skipping %v %v", in, cluster)
 		return
 	}
 
 	if cluster == nil {
-		log.Infof("h2sidecar: OnInboundCluster: No cluster. Skipping %v %v", in, cluster)
 		return
 	}
 
 	if in.Port == nil {
-		log.Infof("h2sidecar: OnInboundCluster: No Port. Skipping %v %v", in, cluster)
 		return
 	}
 
 	if in.Port.Port != 10443 {
-		log.Infof("h2sidecar: OnInboundCluster: Port not 10443. Skipping %v %v", in, cluster)
-		return
-	}
-
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnInboundCluster: Name not http2-elements or https-elements. Skipping %v %v", in, cluster)
 		return
 	}
 
 	setClusterALPNH2(cluster)
-	log.Infof("h2sidecar: Writing elements cluster: %v", cluster)
+	log.Infof("h2sidecar: Writing h2 cluster: %v", cluster)
 }
 
 // setClusterALPNH2 sets ALPN protocols to "H2" in the clusters tls context.
@@ -350,11 +281,6 @@ func (Plugin) OnInboundRouteConfiguration(in *plugin.InputParams, route *xdsapi.
 		return
 	}
 
-	if in.ServiceInstance == nil {
-		log.Infof("h2sidecar: OnInboundRoute: No ServiceInstance. Skipping %v %v", in, route)
-		return
-	}
-
 	if route == nil {
 		log.Infof("h2sidecar: OnInboundRoute: No route. Skipping %v %v", in, route)
 		return
@@ -367,11 +293,6 @@ func (Plugin) OnInboundRouteConfiguration(in *plugin.InputParams, route *xdsapi.
 
 	if in.Port.Port != 10443 {
 		log.Infof("h2sidecar: OnInboundRoute: Port not 10443. Skipping %v %v", in, route)
-		return
-	}
-
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnInboundRoute: Port name not http2-elements or https-elements. Skipping %v %v", in, route)
 		return
 	}
 
@@ -412,11 +333,6 @@ func (Plugin) OnInboundFilterChains(in *plugin.InputParams) []plugin.FilterChain
 
 	if in.Port.Port != 10443 {
 		log.Infof("h2sidecar: OnInboundFilterChains: Port not 10443. Skipping %v", in)
-		return nil
-	}
-
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnInboundFilterChains: Port name not http2-elements or https-elements. Skipping %v", in)
 		return nil
 	}
 
