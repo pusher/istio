@@ -78,7 +78,6 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	httpConnectionManagerFilter := filterChain.TCP[0]
 	newFilterChain := buildFilterChain(httpConnectionManagerFilter)
 	mutable.FilterChains[0] = *newFilterChain
-
 	return nil
 }
 
@@ -93,8 +92,8 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 func buildFilterChain(httpConnectionManager listener.Filter) *plugin.FilterChain {
 	return &plugin.FilterChain{
 		FilterChainMatch: &listener.FilterChainMatch{
-			TransportProtocol:    "tls",
-			ApplicationProtocols: []string{"h2"},
+			//TransportProtocol:    "tls",
+			//ApplicationProtocols: []string{"h2"},
 		},
 
 		TLSContext: &auth.DownstreamTlsContext{
