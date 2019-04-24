@@ -15,8 +15,6 @@
 package h2sidecar
 
 import (
-	"errors"
-
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -79,7 +77,7 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	}
 	httpConnectionManagerFilter := filterChain.TCP[0]
 	newFilterChain := buildFilterChain(httpConnectionManagerFilter)
-	mutable.FilterChains = append(mutable.FilterChains, *newFilterChain)
+	mutable.FilterChains[0] = *newFilterChain
 
 	return nil
 }
@@ -88,54 +86,6 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 // Can be used to add additional filters (e.g., mixer filter) or add more stuff to the HTTP connection manager
 // on the inbound path
 func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	return nil
-}
-
-// setListenerH2S configures an listener to talk H2S.
-// TLC certs are hardcoded and ALPN is H2 only.
-func setListenerH2S(index int, mutable *plugin.MutableObjects) error {
-	if len(mutable.FilterChains) < index+1 {
-		log.Infof("h2sidecar: Expected at least %v listeners in filterchain %v", index+1, mutable)
-		return errors.New("Too few listeners")
-	}
-
-	for ix, filterChain := range mutable.FilterChains {
-		log.Infof("h2sidecar: filterchain index %v is %v", ix, filterChain)
-	}
-
-	// 0 index is expected to be the mtlschain
-	filterChain := mutable.FilterChains[index]
-	log.Infof("h2sidecar: Mutating listener filterChain %v", filterChain)
-
-	if filterChain.TLSContext == nil {
-		log.Infof("h2sidecar: TLSContext was nil")
-		filterChain.TLSContext = &auth.DownstreamTlsContext{}
-	}
-
-	if filterChain.TLSContext.CommonTlsContext == nil {
-		log.Infof("h2sidecar: CommonTLSContext was nil")
-		filterChain.TLSContext.CommonTlsContext = &auth.CommonTlsContext{}
-	}
-
-	// TODO: Should be configured to value set in destinationrule rather than hardcoded.
-	filterChain.TLSContext.CommonTlsContext.TlsCertificates = []*auth.TlsCertificate{
-		{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
-			PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
-		},
-	}
-
-	// Only accept h2 on this listener.
-	filterChain.TLSContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
-
-	// Match on h2 tls
-	if filterChain.FilterChainMatch == nil {
-		filterChain.FilterChainMatch = &listener.FilterChainMatch{}
-	}
-	filterChain.FilterChainMatch.TransportProtocol = "tls"
-	filterChain.FilterChainMatch.ApplicationProtocols = []string{"h2"}
-
-	log.Infof("h2sidecar: mutated filterchain to %v", filterChain)
-	mutable.FilterChains[index] = filterChain
 	return nil
 }
 
