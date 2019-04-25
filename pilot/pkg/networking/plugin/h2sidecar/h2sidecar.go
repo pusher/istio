@@ -110,6 +110,8 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 
+	log.Infof("h2sidecar: OnInboundListener: Mutating %v %v", in, mutable)
+
 	// TODO: Restrict port name?
 	for ix, filterChain := range mutable.Listener.FilterChains {
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
