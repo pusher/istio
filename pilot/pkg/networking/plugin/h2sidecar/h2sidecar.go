@@ -64,20 +64,6 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	}
 
 	// TODO: Restrict port name?
-
-	//if len(mutable.FilterChains) < 1 {
-	//log.Infof("h2sidecar: OnOutboundListener: Expected at least 1 listeners in filterchain %v", mutable)
-	//}
-
-	//filterChain := mutable.FilterChains[0]
-	//if len(filterChain.TCP) < 1 {
-	//log.Infof("h2sidecar: OnOutboundListener: Expected at least 1 listener in filterchain filters %v", mutable)
-	//}
-
-	//httpConnectionManagerFilter := filterChain.TCP[0]
-	//newFilterChain := buildFilterChain(httpConnectionManagerFilter)
-	//mutable.FilterChains[0] = *newFilterChain
-
 	for ix, filterChain := range mutable.Listener.FilterChains {
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
@@ -100,6 +86,46 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 // Can be used to add additional filters (e.g., mixer filter) or add more stuff to the HTTP connection manager
 // on the inbound path
 func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+	if in.Node == nil {
+		return nil
+	}
+
+	if in.Node.Type != model.SidecarProxy {
+		return nil
+	}
+
+	if in.ListenerCategory != networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND {
+		return nil
+	}
+
+	if mutable == nil {
+		return nil
+	}
+
+	if in.Port == nil {
+		return nil
+	}
+
+	if in.Port.Port != 10443 {
+		return nil
+	}
+
+	// TODO: Restrict port name?
+	for ix, filterChain := range mutable.Listener.FilterChains {
+		filterChain.TlsContext = &auth.DownstreamTlsContext{
+			CommonTlsContext: &auth.CommonTlsContext{
+				TlsCertificates: []*auth.TlsCertificate{
+					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
+						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
+					},
+				},
+				AlpnProtocols: []string{"h2"},
+			},
+		}
+		mutable.Listener.FilterChains[ix] = filterChain
+		log.Infof("h2sidecar: OnInboundListener: At filterchain index %v, writing %v", ix, filterChain)
+	}
+
 	return nil
 }
 
