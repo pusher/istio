@@ -86,6 +86,7 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
 					},
 				},
+				AlpnProtocols: []string{"h2"},
 			},
 		}
 		mutable.Listener.FilterChains[ix] = filterChain
