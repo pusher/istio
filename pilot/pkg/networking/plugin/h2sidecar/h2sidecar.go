@@ -110,6 +110,11 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 
+	if in.Port.Name != "https-h2s" && in.Port.Name != "http2-h2s" {
+		log.Infof("h2sidecar: OnInboundListener: Port name not http2-h2s or https-h2s . Skipping %v %v", in, mutable)
+		return nil
+	}
+
 	log.Infof("h2sidecar: OnInboundListener: Mutating %v %v", in, mutable)
 
 	// TODO: Restrict port name?
@@ -247,8 +252,8 @@ func (Plugin) OnOutboundRouteConfiguration(in *plugin.InputParams, route *xdsapi
 		return
 	}
 
-	if in.Port.Name != "http2-elements" && in.Port.Name != "https-elements" {
-		log.Infof("h2sidecar: OnOutboundRoute: Port name not http2-elements or https-elements. Skipping %v %v", in, route)
+	if in.Port.Name != "http2-h2s" && in.Port.Name != "https-h2s" {
+		log.Infof("h2sidecar: OnOutboundRoute: Port name not http2-h2s or https-h2s . Skipping %v %v", in, route)
 		return
 	}
 
