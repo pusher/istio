@@ -117,18 +117,20 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 
 	// TODO: Restrict port name?
 	for ix, filterChain := range mutable.Listener.FilterChains {
+		// TODO: Why are we skipping 0? Encode the filter we're trying to modify better.
 		if ix == 0 {
 			continue
 		}
 
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
+				// TODO: Is this requiring mutual TLS?
 				TlsCertificates: []*auth.TlsCertificate{
 					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
 						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
 					},
 				},
-				AlpnProtocols: []string{"h2"},
+				AlpnProtocols: []string{"h2", "http/1.1"},
 			},
 		}
 		mutable.Listener.FilterChains[ix] = filterChain
@@ -178,6 +180,7 @@ func setClusterALPNH2(cluster *xdsapi.Cluster) {
 		cluster.TlsContext.CommonTlsContext = &auth.CommonTlsContext{}
 	}
 
+	// TODO: Http1 permitted?
 	cluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
 }
 
