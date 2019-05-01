@@ -166,6 +166,10 @@ func (Plugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) 
 		return
 	}
 
+	if in.Port.Name != "http2" && in.Port.Name != "http2-h2s" {
+		return
+	}
+
 	setClusterALPNH2(cluster)
 	log.Infof("h2sidecar: Writing h2 cluster: %v", cluster)
 }
@@ -180,8 +184,7 @@ func setClusterALPNH2(cluster *xdsapi.Cluster) {
 		cluster.TlsContext.CommonTlsContext = &auth.CommonTlsContext{}
 	}
 
-	// TODO: Http1 permitted?
-	cluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNHttp
+	cluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
 }
 
 // OnOutboundRouteConfiguration implements the Plugin interface method.
