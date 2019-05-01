@@ -181,7 +181,7 @@ func setClusterALPNH2(cluster *xdsapi.Cluster) {
 	}
 
 	// TODO: Http1 permitted?
-	cluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNH2Only
+	cluster.TlsContext.CommonTlsContext.AlpnProtocols = util.ALPNHttp
 }
 
 // OnOutboundRouteConfiguration implements the Plugin interface method.
