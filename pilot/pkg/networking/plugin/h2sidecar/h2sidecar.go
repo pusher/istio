@@ -141,7 +141,7 @@ func getListenerPorts(in *plugin.InputParams) ([]int, error) {
 		return nil, nil
 	}
 
-	h2sidecarPortStr, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/port", direction)]
+	h2sidecarPortStr, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar-%v-port", direction)]
 	if !ok {
 		return nil, nil
 	}
@@ -179,7 +179,7 @@ func getCertificate(in *plugin.InputParams) *auth.TlsCertificate {
 
 	cert := &auth.TlsCertificate{}
 
-	chain, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/certificateChain", direction)]
+	chain, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar-%v-certificateChain", direction)]
 	if ok {
 		cert.CertificateChain = &core.DataSource{
 			Specifier: &core.DataSource_Filename{
@@ -187,7 +187,7 @@ func getCertificate(in *plugin.InputParams) *auth.TlsCertificate {
 			}}
 	}
 
-	privateKey, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/privateKey", direction)]
+	privateKey, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar-%v-privateKey", direction)]
 	if ok {
 		cert.PrivateKey = &core.DataSource{
 			Specifier: &core.DataSource_Filename{
