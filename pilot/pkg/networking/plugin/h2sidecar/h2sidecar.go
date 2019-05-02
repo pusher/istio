@@ -34,8 +34,24 @@ func NewPlugin() plugin.Plugin {
 	return Plugin{}
 }
 
-// OnOutboundListener is called whenever a new outbound listener is added to the LDS output for a given service
-// Can be used to add additional filters on the outbound path
+// Terminate TLS at the outbound listener.
+//
+// You may want this if:
+// - You have existing workloads that require TLS
+//   - Perhaps TLS cannot be disabled. For example Go cannot easily talk http2 without TLS.
+// - You do not wish to passthrough the TLS to the destination workload.
+//   - Because you need to inspect the underlying data for routing
+//   - Or you wish to balance individual h2 streams across destination endpoints
+//
+// The downsides of this approach are:
+// - All destinations listening on the same port will be required to talk TLS
+//   as the listener will capture traffic to each of them.
+// - A valid certificate needs to be provided which the workload must recognise
+//   as belonging to every destination.
+//   I.E. either:
+//   - Each destination must use the same certificate and it must be mounted locally.
+//   - A dummy certificate must be used and communication from workload to the
+//     sidecar cannot verify ownership of the cert.
 func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 	if in.Node == nil {
 		return nil
@@ -57,12 +73,19 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 		return nil
 	}
 
+	// TODO: Configure by annotations on the pod instead of hardcoded port number?
 	if in.Port.Port != 10443 {
 		return nil
 	}
+	log.Infof("h2sidecar: OnOutboundListener: Node metadata: %v", in.Node.Metadata)
+	log.Infof("h2sidecar: OnOutboundListener: ServiceInstance Labels: %v", in.ServiceInstance.Labels)
 
-	// TODO: Restrict port name?
 	for ix, filterChain := range mutable.Listener.FilterChains {
+		// TODO:
+		// - Should every filterchain be modified?
+		// - Insert rather than modify?
+		// - Certs should be configurable
+		// - ALPN could contain more than h2
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
 				TlsCertificates: []*auth.TlsCertificate{
@@ -104,10 +127,6 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 
-	if in.Port.Port != 10443 {
-		return nil
-	}
-
 	if in.Port.Name != "https-h2s" && in.Port.Name != "http2-h2s" {
 		log.Infof("h2sidecar: OnInboundListener: Port name not http2-h2s or https-h2s . Skipping %v %v", in, mutable)
 		return nil
@@ -124,7 +143,6 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
-				// TODO: Is this requiring mutual TLS?
 				TlsCertificates: []*auth.TlsCertificate{
 					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
 						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
@@ -159,10 +177,6 @@ func (Plugin) OnInboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) 
 	}
 
 	if in.Port == nil {
-		return
-	}
-
-	if in.Port.Port != 10443 {
 		return
 	}
 
