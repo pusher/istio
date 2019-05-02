@@ -15,6 +15,9 @@
 package h2sidecar
 
 import (
+	"fmt"
+	"strconv"
+
 	xdsapi "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/auth"
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -73,27 +76,40 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 		return nil
 	}
 
-	// TODO: Configure by annotations on the pod instead of hardcoded port number?
-	if in.Port.Port != 10443 {
+	// If there is no annotated port, or the annotation is empty, there is nothing to do.
+	h2sidecarPorts, err := getListenerPorts(in)
+	if err != nil {
+		return err
+	}
+	if h2sidecarPorts == nil {
 		return nil
 	}
-	log.Infof("h2sidecar: OnOutboundListener: Node metadata: %v", in.Node.Metadata)
-	log.Infof("h2sidecar: OnOutboundListener: ServiceInstance Labels: %v", in.ServiceInstance.Labels)
+
+	// If the port we're building a listener for does not match a provided port,
+	// there is nothing to do.
+	match := false
+	for _, matchPort := range h2sidecarPorts {
+		match = match || in.Port.Port == matchPort
+	}
+	if !match {
+		return nil
+	}
+
+	outboundCertificate := getCertificate(in)
+	if outboundCertificate == nil {
+		// TODO: Is defining no/ empty paths an error?
+		return nil
+	}
 
 	for ix, filterChain := range mutable.Listener.FilterChains {
 		// TODO:
 		// - Should every filterchain be modified?
 		// - Insert rather than modify?
-		// - Certs should be configurable
 		// - ALPN could contain more than h2
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
-				TlsCertificates: []*auth.TlsCertificate{
-					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
-						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
-					},
-				},
-				AlpnProtocols: []string{"h2"},
+				TlsCertificates: []*auth.TlsCertificate{outboundCertificate},
+				AlpnProtocols:   []string{"h2"},
 			},
 		}
 		mutable.Listener.FilterChains[ix] = filterChain
@@ -101,6 +117,85 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 	}
 
 	return nil
+}
+
+// read the port whose listener should have TLS settings added.
+// TODO:
+// - Parse string as possible list of ports.
+// - Ports could be defined on sidecar/ destinationrule CRD rather than annotation.
+// - Inbound ports could also be configured by port name suffix.
+func getListenerPorts(in *plugin.InputParams) ([]int, error) {
+	if in.Node == nil {
+		return nil, nil
+	}
+
+	var direction string
+	switch in.ListenerCategory {
+	case networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND:
+		direction = "outbound"
+	case networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND:
+		direction = "inbound"
+	case networking.EnvoyFilter_ListenerMatch_GATEWAY:
+		direction = "gateway"
+	default:
+		return nil, nil
+	}
+
+	h2sidecarPortStr, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/port", direction)]
+	if !ok {
+		return nil, nil
+	}
+
+	h2sidecarPort, err := strconv.Atoi(h2sidecarPortStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return []int{h2sidecarPort}, nil
+}
+
+// read paths to TLS certificates for a listener.
+// The certificate chain and private key may not be set.
+// TODO:
+// - Outbound certs can be configured on sidecar crd
+// - Inbound certs could/ should be configured by the corresponding destinationrule?
+//   For the time being the annotation should probably point to the same cert.
+func getCertificate(in *plugin.InputParams) *auth.TlsCertificate {
+	if in.Node == nil {
+		return nil
+	}
+
+	var direction string
+	switch in.ListenerCategory {
+	case networking.EnvoyFilter_ListenerMatch_SIDECAR_OUTBOUND:
+		direction = "outbound"
+	case networking.EnvoyFilter_ListenerMatch_SIDECAR_INBOUND:
+		direction = "inbound"
+	case networking.EnvoyFilter_ListenerMatch_GATEWAY:
+		direction = "gateway"
+	default:
+		return nil
+	}
+
+	cert := &auth.TlsCertificate{}
+
+	chain, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/certificateChain", direction)]
+	if ok {
+		cert.CertificateChain = &core.DataSource{
+			Specifier: &core.DataSource_Filename{
+				Filename: chain,
+			}}
+	}
+
+	privateKey, ok := in.Node.Metadata[fmt.Sprintf("istio.io/h2sidecar/%v/privateKey", direction)]
+	if ok {
+		cert.PrivateKey = &core.DataSource{
+			Specifier: &core.DataSource_Filename{
+				Filename: privateKey,
+			}}
+	}
+
+	return cert
 }
 
 // OnInboundListener is called whenever a new listener is added to the LDS output for a given service
@@ -127,13 +222,32 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 		return nil
 	}
 
-	if in.Port.Name != "https-h2s" && in.Port.Name != "http2-h2s" {
-		log.Infof("h2sidecar: OnInboundListener: Port name not http2-h2s or https-h2s . Skipping %v %v", in, mutable)
+	// If there is no annotated port, or the annotation is empty, there is nothing to do.
+	h2sidecarPorts, err := getListenerPorts(in)
+	if err != nil {
+		return err
+	}
+	if h2sidecarPorts == nil {
+		return nil
+	}
+
+	// If the port we're building a listener for does not match a provided port,
+	// there is nothing to do.
+	match := false
+	for _, matchPort := range h2sidecarPorts {
+		match = match || in.Port.Port == matchPort
+	}
+	if !match {
+		return nil
+	}
+
+	inboundCertificate := getCertificate(in)
+	if inboundCertificate == nil {
+		// TODO: Is defining no/ empty paths an error?
 		return nil
 	}
 
 	log.Infof("h2sidecar: OnInboundListener: Mutating %v %v", in, mutable)
-
 	// TODO: Restrict port name?
 	for ix, filterChain := range mutable.Listener.FilterChains {
 		// TODO: Why are we skipping 0? Encode the filter we're trying to modify better.
@@ -143,12 +257,8 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 
 		filterChain.TlsContext = &auth.DownstreamTlsContext{
 			CommonTlsContext: &auth.CommonTlsContext{
-				TlsCertificates: []*auth.TlsCertificate{
-					{CertificateChain: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.crt"}},
-						PrivateKey: &core.DataSource{Specifier: &core.DataSource_Filename{Filename: "/certs/tls.key"}},
-					},
-				},
-				AlpnProtocols: []string{"h2", "http/1.1"},
+				TlsCertificates: []*auth.TlsCertificate{inboundCertificate},
+				AlpnProtocols:   []string{"h2", "http/1.1"},
 			},
 		}
 		mutable.Listener.FilterChains[ix] = filterChain
