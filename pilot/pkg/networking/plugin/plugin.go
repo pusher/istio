@@ -43,6 +43,8 @@ const (
 	Health = "health"
 	// Mixer is the name of the mixer plugin passed through the command line
 	Mixer = "mixer"
+	// H2Sidecar is the name of the h2sidecar plugin passed through the command line
+	H2Sidecar = "h2sidecar"
 )
 
 // ModelProtocolToListenerProtocol converts from a model.Protocol to its corresponding plugin.ListenerProtocol
