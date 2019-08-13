@@ -148,7 +148,7 @@ function setup_kind_cluster() {
 function cni_run_daemon() {
 
   echo 'Run the CNI daemon set'
-  ISTIO_CNI_HUB=${ISTIO_CNI_HUB:-gcr.io/istio-release}
+  ISTIO_CNI_HUB=${ISTIO_CNI_HUB:-quay.io/pusher/istio}
   ISTIO_CNI_TAG=${ISTIO_CNI_TAG:-master-latest-daily}
 
   chartdir=$(pwd)/charts

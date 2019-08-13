@@ -42,7 +42,7 @@ export OWNER="${OWNER:-e2e-suite}"
 export PILOT_CLUSTER="${PILOT_CLUSTER:-}"
 export USE_MASON_RESOURCE="${USE_MASON_RESOURCE:-True}"
 export CLEAN_CLUSTERS="${CLEAN_CLUSTERS:-True}"
-export HUB=${HUB:-"gcr.io/istio-testing"}
+export HUB=${HUB:-"quay.io/pusher/istio"}
 
 # shellcheck source=prow/lib.sh
 source "${ROOT}/prow/lib.sh"
