@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/types"
+	google_protobuf "github.com/gogo/protobuf/types"
 
 	"istio.io/istio/pkg/features/pilot"
 
@@ -369,6 +370,15 @@ func (configgen *ConfigGeneratorImpl) createGatewayHTTPFilterChainOpts(
 		}
 	}
 
+	// TODO: This should be configurable and likely only set on http2 protos.
+	if httpOpts.connectionManager.Http2ProtocolOptions == nil {
+		httpOpts.connectionManager.Http2ProtocolOptions = &core.Http2ProtocolOptions{}
+	}
+	if httpOpts.connectionManager.Http2ProtocolOptions != nil {
+		httpOpts.connectionManager.Http2ProtocolOptions.MaxConcurrentStreams = &google_protobuf.UInt32Value{
+			Value: 65536}
+	}
+
 	// Are we processing plaintext servers or HTTPS servers?
 	// If plain text, we have to combine all servers into a single listener
 	if serverProto.IsHTTP() {
@@ -391,6 +401,7 @@ func (configgen *ConfigGeneratorImpl) createGatewayHTTPFilterChainOpts(
 	if enableSds, found := node.Metadata["USER_SDS"]; found && util.IsProxyVersionGE11(node) {
 		enableIngressSdsAgent, _ = strconv.ParseBool(enableSds)
 	}
+
 	return &filterChainOpts{
 		// This works because we validate that only HTTPS servers can have same port but still different port names
 		// and that no two non-HTTPS servers can be on same port or share port names.

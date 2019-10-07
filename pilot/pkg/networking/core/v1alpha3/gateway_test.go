@@ -22,6 +22,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	http_conn "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	"github.com/gogo/protobuf/types"
+	google_protobuf "github.com/gogo/protobuf/types"
 
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/core/v1alpha3/fakes"
@@ -513,6 +514,9 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 						HttpProtocolOptions: &core.Http1ProtocolOptions{
 							AcceptHttp_10: true,
 						},
+						Http2ProtocolOptions: &core.Http2ProtocolOptions{
+							MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+						},
 					},
 				},
 			},
@@ -568,6 +572,9 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 						},
 						ServerName:          EnvoyServerName,
 						HttpProtocolOptions: &core.Http1ProtocolOptions{},
+						Http2ProtocolOptions: &core.Http2ProtocolOptions{
+							MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+						},
 					},
 				},
 			},
@@ -623,6 +630,9 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 						},
 						ServerName:          EnvoyServerName,
 						HttpProtocolOptions: &core.Http1ProtocolOptions{},
+						Http2ProtocolOptions: &core.Http2ProtocolOptions{
+							MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+						},
 					},
 				},
 			},
@@ -678,6 +688,9 @@ func TestCreateGatewayHTTPFilterChainOpts(t *testing.T) {
 						},
 						ServerName:          EnvoyServerName,
 						HttpProtocolOptions: &core.Http1ProtocolOptions{},
+						Http2ProtocolOptions: &core.Http2ProtocolOptions{
+							MaxConcurrentStreams: &google_protobuf.UInt32Value{Value: 65536},
+						},
 					},
 				},
 			},
