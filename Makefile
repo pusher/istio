@@ -20,7 +20,7 @@ export ISTIO_GO
 SHELL := /bin/bash
 
 # Current version, updated after a release.
-VERSION ?= 1.0-dev
+VERSION ?= 1.2.10
 
 # locations where artifacts are stored
 ISTIO_DOCKER_HUB ?= docker.io/istio
