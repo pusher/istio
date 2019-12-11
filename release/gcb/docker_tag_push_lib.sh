@@ -63,8 +63,14 @@ function add_extra_artifacts_to_tar_images() {
     fi
     docker load -i "${TAR_PATH}"
 
+    if [[ "${IMAGE_NAME}" == "install-cni" ]]; then
+      SEP="/"
+    else
+      SEP="-"
+    fi
+
     cat >Dockerfile <<EOF
-FROM istio/${IMAGE_NAME}:${TAG}
+FROM istio${SEP}${IMAGE_NAME}:${TAG}
 ${add_cmd}
 EOF
 
