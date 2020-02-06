@@ -20,7 +20,7 @@ export ISTIO_GO
 SHELL := /bin/bash -o pipefail
 
 # Current version, updated after a release.
-VERSION ?= 1.3-dev
+VERSION ?= 1.3-7
 
 # Base version of Istio image to use
 BASE_VERSION ?= 1.3
