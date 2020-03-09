@@ -141,7 +141,6 @@ global:
     init:
       resources:
         limits:
-          cpu: 100m
           memory: 50Mi
         requests:
           cpu: 10m
@@ -158,7 +157,6 @@ global:
         cpu: 100m
         memory: 128Mi
       limits:
-        cpu: 2000m
         memory: 1024Mi
 
     # Controls number of Proxy worker threads.
@@ -447,7 +445,6 @@ global:
       cpu: 100m
       memory: 128Mi
     limits:
-      cpu: 100m
       memory: 128Mi
 
   # enable pod distruption budget for the control plane, which is used to
