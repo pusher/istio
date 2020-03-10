@@ -12,3 +12,6 @@ for i in "$OUT_DIR"/istio/charts/*/templates; do rmdir "$i"; done
 for i in "$OUT_DIR"/istio/charts/*/clusterrolebinding.yaml; do mv "$i" "${i//clusterrolebinding/crb}"; done
 for i in "$OUT_DIR"/istio/charts/*/autoscale.yaml; do mv "$i" "${i//autoscale/hpa}"; done
 for i in "$OUT_DIR"/istio/charts/*/deployment.yaml; do sed -i 's|IfNotPresent|Always|' "$i"; done
+for i in $(find "$OUT_DIR"/istio/charts -name '*.yaml'); do
+    sed -i 's|istio-system.svc:|istio-system.svc.cluster.local:|' "$i"
+done
